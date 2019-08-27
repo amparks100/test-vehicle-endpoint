@@ -43,3 +43,4 @@ https://medium.com/@yunskilic/developing-golang-aws-lambda-functions-with-gorm-a
 
 how to publish to SNS:
 https://docs.aws.amazon.com/sdk-for-go/v1/developer-guide/sns-example-publish.html
+https://sourcegraph.com/github.com/datacratic/aws-sdk-go/-/blob/service/sns/examples_test.go
