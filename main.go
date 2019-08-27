@@ -6,11 +6,15 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/sns"
+
 	"github.com/amparks100/test-vehicle-endpoint/db"
 	"github.com/amparks100/test-vehicle-endpoint/models"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 )
@@ -62,6 +66,32 @@ func PostVehicle(request events.APIGatewayProxyRequest, database *gorm.DB) (even
 	vehicleData.Imei = vehicle.Imei
 	database.Create(vehicleData)
 	log.Printf("Saved Vehicle VIN: %s to database", vehicleData.Vin)
+
+	sess, err := session.NewSession(&aws.Config{
+		Region: aws.String("us-east-1"),
+	})
+	if err != nil {
+		response.StatusCode = 500
+		response.Body = fmt.Sprintf("Unable to create session")
+		return response, err
+	}
+	log.Printf("Created Session")
+	client := sns.New(sess)
+	log.Printf("Created client")
+
+	message := fmt.Sprintf("%v", request.Body)
+
+	pubReq, resp := client.PublishRequest(&sns.PublishInput{
+		Message:  aws.String(message),
+		TopicArn: aws.String("arn:aws:sns:us-east-1:*:vehicle-test-queue"),
+	})
+	err = pubReq.Send()
+	if err != nil {
+		response.StatusCode = 500
+		response.Body = fmt.Sprintf("Unable to publish message, %v", resp)
+		return response, err
+	}
+	log.Printf("Published message to SNS, messageId: %v", resp.MessageId)
 
 	response.StatusCode = 200
 	response.Body = fmt.Sprintf("HALLO vehicle! VIN: %s, IMEI: %s", vehicle.Vin, vehicle.Imei)
