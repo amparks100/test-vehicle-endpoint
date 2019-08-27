@@ -24,6 +24,14 @@ GET
 
 upload the outputted zip file into the lambda function. set the handler to `test-vehicle-endpoint`
 
+## Amazon setup:
+
+API Gateway -> Lamda -> RDS & SNS -> SQS
+
+To connect to RDS - Need a VPC and a security group that connects to the lambda subnets
+
+To connect to SNS - Need an Endpoint (found inside VPC dashboard) which connects to the lambda subnets
+
 
 ## References:
 
