@@ -60,6 +60,7 @@ func PostVehicle(request events.APIGatewayProxyRequest, database *gorm.DB) (even
 		response.Body = fmt.Sprintf("Could not unmarshal request: %s", request.Body)
 		return response, err
 	}
+	//save to database
 	database.AutoMigrate(&models.VehicleDataModel{})
 	vehicleData := &models.VehicleDataModel{}
 	vehicleData.Vin = vehicle.Vin
@@ -67,6 +68,7 @@ func PostVehicle(request events.APIGatewayProxyRequest, database *gorm.DB) (even
 	database.Create(vehicleData)
 	log.Printf("Saved Vehicle VIN: %s to database", vehicleData.Vin)
 
+	//connect to SNS
 	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String("us-east-1"),
 	})
@@ -75,15 +77,30 @@ func PostVehicle(request events.APIGatewayProxyRequest, database *gorm.DB) (even
 		response.Body = fmt.Sprintf("Unable to create session")
 		return response, err
 	}
-	log.Printf("Created Session")
 	client := sns.New(sess)
-	log.Printf("Created client")
 
-	message := fmt.Sprintf("%v", request.Body)
-
+	//create message
+	createdMessage := models.VehicleMessageModel{
+		MessageType: "VEHICLE_CREATED",
+		Vin:         vehicle.Vin,
+		Imei:        vehicle.Imei,
+	}
+	messageJSON, err := json.Marshal(createdMessage)
+	if err != nil {
+		response.StatusCode = 500
+		response.Body = fmt.Sprintf("Unable to marshal json")
+		return response, err
+	}
+	//publish message
 	pubReq, resp := client.PublishRequest(&sns.PublishInput{
-		Message:  aws.String(message),
+		Message:  aws.String(string(messageJSON)),
 		TopicArn: aws.String("arn:aws:sns:us-east-1:*:vehicle-test-queue"),
+		MessageAttributes: map[string]*sns.MessageAttributeValue{
+			"MessageType": &sns.MessageAttributeValue{
+				DataType:    aws.String("String"),
+				StringValue: aws.String("VEHICLE_CREATED"),
+			},
+		},
 	})
 	err = pubReq.Send()
 	if err != nil {
@@ -93,6 +110,7 @@ func PostVehicle(request events.APIGatewayProxyRequest, database *gorm.DB) (even
 	}
 	log.Printf("Published message to SNS, messageId: %v", resp.MessageId)
 
+	//return successful status
 	response.StatusCode = 200
 	response.Body = fmt.Sprintf("HALLO vehicle! VIN: %s, IMEI: %s", vehicle.Vin, vehicle.Imei)
 	return response, nil
