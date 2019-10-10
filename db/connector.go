@@ -18,7 +18,7 @@ func (p *PostgresConnector) GetConnection() (db *gorm.DB, err error) {
 	}
 	username := "postgres"
 	password := "postgres"
-	dbHost := "vehicles-demo.c8vmrjgrpxrq.us-east-1.rds.amazonaws.com"
+	dbHost := "vehicles-demo.*.us-east-1.rds.amazonaws.com"
 	dbURI := fmt.Sprintf("host=%s user=%s password=%s", dbHost, username, password)
 	return gorm.Open("postgres", dbURI)
 }
